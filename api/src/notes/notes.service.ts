@@ -1,8 +1,7 @@
-import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { ConfigService } from '@nestjs/config';
-import { not } from 'supertest/lib/cookies';
 
 const prisma = new PrismaClient();
 
@@ -107,5 +106,79 @@ ${note.content}`;
       data: { summary: parsed.summary, tags: parsed.tags },
     })
 
+  }
+
+  // Add a collaborator by email (only users that exist in the database for now)
+  // Can add invite by email later
+  async addCollaborator(
+    ownerId: string,
+    noteId: string,
+    email: string,
+  ) {
+    const note = await prisma.note.findUnique({
+      where: { id: noteId },
+    });
+
+    if (!note) {
+      throw new NotFoundException('Note not found');
+    }
+
+    // Only the note owner can share it
+    if (note.ownerId !== ownerId) {
+      throw new ForbiddenException(
+        'Only the owner can add collaborators',
+      );
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      throw new NotFoundException(
+        'No Huddle user exists with that email',
+      );
+    }
+
+    // Owner cannot add themselves as a collaborator
+    if (user.id === ownerId) {
+      throw new BadRequestException(
+        'You cannot add yourself as a collaborator',
+      );
+    }
+
+    const existingCollaborator =
+      await prisma.noteCollaborator.findUnique({
+        where: {
+          noteId_userId: {
+            noteId,
+            userId: user.id,
+          },
+        },
+      });
+
+    if (existingCollaborator) {
+      throw new ConflictException(
+        'User is already a collaborator',
+      );
+    }
+
+    return prisma.noteCollaborator.create({
+      data: {
+        noteId,
+        userId: user.id,
+        role: 'editor',
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            avatarUrl: true,
+          },
+        },
+      },
+    });
   }
 }

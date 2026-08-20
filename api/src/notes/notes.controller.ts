@@ -5,6 +5,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { NotesService } from './notes.service';
 import { CreateNoteDto } from './dto/create-note.dto';
 import { UpdateNoteDto } from './dto/update-note.dto';
+import { AddCollaboratorDto } from './dto/add-collaborator.dto';
 
 @Controller('notes')
 @UseGuards(JwtAuthGuard) // user must be logged in
@@ -22,6 +23,20 @@ export class NotesController {
   @Get()
   findAll(@Req() req) {
     return this.notesService.findAllForUser(req.user.userId);
+  }
+
+  // POST /notes/:id/collaborators - owner adds a collaborator to a note by email
+  @Post(':id/collaborators')
+  addCollaborator(
+    @Req() req,
+    @Param('id') id: string,
+    @Body() dto: AddCollaboratorDto,
+  ) {
+    return this.notesService.addCollaborator(
+      req.user.userId,
+      id,
+      dto.email,
+    );
   }
 
   // GET /notes/:id - fetch one note (access-checked in the service)
