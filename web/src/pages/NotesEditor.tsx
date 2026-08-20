@@ -15,6 +15,13 @@ export default function NoteEditor() {
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isRemoteUpdate = useRef(false); // prevents echoing our own broadcasts back into a save loop
 
+  const contentRef = useRef(content);
+  const idRef = useRef(id);
+
+  useEffect(() => {
+    contentRef.current = content;
+}, [content]);
+
   // Load the note once on mount
   useEffect(() => {
     if (!id) return;
@@ -77,6 +84,17 @@ export default function NoteEditor() {
       setSaveStatus("saved");
     }, 500); // debounce: wait for a pause in typing before syncing/saving
   }, [content, title]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    return () => {
+        if (contentRef.current.trim().length > 0) {
+        // fire-and-forget : we're leaving the page, no need to wait or update UI here
+        apiFetch(`/notes/${idRef.current}/summarize`, { method: 'POST' }).catch(() => {
+        // silently ignore  
+        });
+        }
+    };
+}, []);
 
   if (loading) {
     return <div style={{ color: "#F7F4EC", padding: "2rem", background: "#1C1B1A", height: "100vh" }}>Loading...</div>;

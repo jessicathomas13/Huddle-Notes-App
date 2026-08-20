@@ -1,10 +1,19 @@
 import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { ConfigService } from '@nestjs/config';
+import { not } from 'supertest/lib/cookies';
 
 const prisma = new PrismaClient();
 
 @Injectable()
 export class NotesService {
+  private genAI: GoogleGenerativeAI;
+
+  constructor(private configService: ConfigService){
+    this.genAI = new GoogleGenerativeAI(this.configService.get<string>('GEMINI_API_KEY')!);
+  }
+  
   // Create a note owned by the logged-in user
   async create(userId: string, title: string, content: string) {
     return prisma.note.create({
@@ -61,5 +70,42 @@ export class NotesService {
       where: { noteId_userId: { noteId: note.id, userId } },
     });
     if (!collab) throw new ForbiddenException('You do not have access to this note');
+  }
+
+  // Generates a summary + tags for a note using Gemini, and saves them
+  async summarize(userId: string, noteId: string) {
+    const note = await prisma.note.findUnique({ where: { id: noteId }});
+    if (!note) throw new NotFoundException('Note not found');
+    await this.assertAccess(userId, note);
+
+    const model = this.genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
+
+    const prompt = `Summarize the following note in one short sentence, and suggest 2-4 relevant single-word or short-phrase tags.
+Respond ONLY with valid JSON in this exact shape, no other text: {"summary": "...", "tags": ["...", "..."]}
+Note content:
+${note.content}`;
+
+    let text: string;
+    try {
+      const result = await model.generateContent(prompt);
+      text = result.response.text();
+    } catch (err: any) {
+      if (err.status === 503) {
+        await new Promise((resolve) => setTimeout(resolve, 2000)); // wait 2s
+        const retryResult = await model.generateContent(prompt);
+        text = retryResult.response.text();
+      } else {
+        throw err;
+      }
+    }
+
+    const cleaned = text.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(cleaned);
+
+    return prisma.note.update({
+      where: { id: noteId },
+      data: { summary: parsed.summary, tags: parsed.tags },
+    })
+
   }
 }

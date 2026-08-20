@@ -41,4 +41,11 @@ export class NotesController {
   remove(@Req() req, @Param('id') id: string) {
     return this.notesService.remove(req.user.userId, id);
   }
+
+  // POST /notes/:id/summarize - generate an AI summary + tags via Gemini, save and return the updated note
+  @Post(':id/summarize')
+  summarize(@Req() req, @Param('id') id: string){
+    return this.notesService.summarize(req.user.userId, id);
+  }
+
 }

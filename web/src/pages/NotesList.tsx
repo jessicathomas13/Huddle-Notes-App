@@ -6,6 +6,8 @@ interface Note {
   id: string;
   title: string;
   content: string;
+  summary?: string;
+  tags?: string[];
   updatedAt: string;
 }
 
@@ -97,10 +99,33 @@ export default function NotesList() {
             <div style={{ fontSize: "12px", color: "#8A8580", marginTop: "4px" }}>
               {new Date(note.updatedAt).toLocaleDateString()}
             </div>
-          </div>
+            {note.summary && (
+                <div style={{ fontSize: "13px", color: "#B5B0A8", marginTop: "6px", fontStyle: "italic" }}>
+                {note.summary}
+                </div>
+            )}
+            {note.tags && note.tags.length > 0 && (
+                <div style={{ display: "flex", gap: "6px", marginTop: "6px", flexWrap: "wrap" }}>
+                    {note.tags.map((tag) => (
+                        <span
+                        key={tag}
+                        style={{
+                            fontSize: "11px",
+                            padding: "2px 8px",
+                            background: "#3D5A80",
+                            color: "#F7F4EC",
+                            borderRadius: "10px",
+                        }}
+                        >
+                        {tag}
+                        </span>
+                    ))}
+                </div>
+            )}
+            </div>
         ))}
-      </div>
-
+    </div>
+        
       <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "#8A8580" }}>
         Select a note or create a new one
       </div>
