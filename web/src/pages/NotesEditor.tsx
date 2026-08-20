@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { io, Socket } from "socket.io-client";
 import { apiFetch } from "../api/client";
+import "./NotesEditor.css";
 
 export default function NoteEditor() {
   const { id } = useParams<{ id: string }>();
@@ -10,6 +11,11 @@ export default function NoteEditor() {
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(true);
   const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "idle">("idle");
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareEmail, setShareEmail] = useState('');
+  const [shareError, setShareError] = useState('');
+  const [shareSuccess, setShareSuccess] = useState('');
+  const [isSharing, setIsSharing] = useState(false);
 
   const socketRef = useRef<Socket | null>(null);
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -94,57 +100,146 @@ export default function NoteEditor() {
         });
         }
     };
-}, []);
+  }, []);
+
+  const handleShare = async () => {
+    if (!shareEmail.trim()) {
+        setShareError('Enter an email address');
+        return;
+    }
+
+    try {
+        setIsSharing(true);
+        setShareError('');
+        setShareSuccess('');
+
+        const token = localStorage.getItem('token');
+
+        const response = await fetch(
+        `http://localhost:3000/notes/${id}/collaborators`,
+        {
+            method: 'POST',
+            headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+            email: shareEmail.trim(),
+            }),
+        },
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+        throw new Error(
+            data.message || 'Failed to add collaborator',
+        );
+        }
+
+        setShareSuccess('Collaborator added!');
+        setShareEmail('');
+    } catch (error) {
+        if (error instanceof Error) {
+        setShareError(error.message);
+        } else {
+        setShareError('Something went wrong');
+        }
+    } finally {
+        setIsSharing(false);
+    }
+    };
 
   if (loading) {
-    return <div style={{ color: "#F7F4EC", padding: "2rem", background: "#1C1B1A", height: "100vh" }}>Loading...</div>;
+    return <div className="note-editor-loading">Loading...</div>;
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#1C1B1A", padding: "40px", fontFamily: "Inter, sans-serif" }}>
-      <button
-        onClick={() => navigate("/notes")}
-        style={{ background: "none", border: "none", color: "#8A8580", cursor: "pointer", marginBottom: "20px" }}
-      >
-        ← Back to notes
-      </button>
+    <div className="note-editor-page">
+      <div className="note-editor-topbar">
+        <button
+            className="note-editor-back"
+            onClick={() => navigate("/notes")}
+        >
+            ← Back to notes
+        </button>
 
-      <div style={{ maxWidth: "720px", margin: "0 auto", background: "#F7F4EC", borderRadius: "8px", padding: "48px", minHeight: "70vh" }}>
+        <button
+            className="note-editor-share"
+            onClick={() => setShowShareModal(true)}
+        >
+            Share
+        </button>
+        </div>
+      {showShareModal && (
+        <div className="modal-overlay">
+            <div className="share-modal">
+            <h2>Share note</h2>
+
+            <p>Add another Huddle user as a collaborator.</p>
+
+            <input
+                type="email"
+                placeholder="friend@example.com"
+                value={shareEmail}
+                onChange={(e) => {
+                setShareEmail(e.target.value);
+                setShareError('');
+                setShareSuccess('');
+                }}
+            />
+
+            {shareError && (
+                <p className="share-error">
+                {shareError}
+                </p>
+            )}
+
+            {shareSuccess && (
+                <p className="share-success">
+                {shareSuccess}
+                </p>
+            )}
+
+            <div className="share-modal-actions">
+                <button className="share-cancel-button"
+                onClick={() => {
+                    setShowShareModal(false);
+                    setShareEmail('');
+                    setShareError('');
+                    setShareSuccess('');
+                }}
+                >
+                Cancel
+                </button>
+
+                <button className="share-submit-button"
+                onClick={handleShare}
+                disabled={isSharing}
+                >
+                {isSharing ? 'Adding...' : 'Add collaborator'}
+                </button>
+            </div>
+            </div>
+        </div>
+        )}
+
+      <div className="note-editor-card">
         <input
+          className="note-editor-title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Untitled"
-          style={{
-            width: "100%",
-            border: "none",
-            outline: "none",
-            background: "transparent",
-            fontFamily: "'Source Serif 4', serif",
-            fontSize: "32px",
-            marginBottom: "24px",
-            color: "#1C1B1A",
-          }}
         />
         <textarea
+          className="note-editor-content"
           value={content}
           onChange={(e) => setContent(e.target.value)}
           placeholder="Start writing..."
-          style={{
-            width: "100%",
-            minHeight: "50vh",
-            border: "none",
-            outline: "none",
-            resize: "vertical",
-            background: "transparent",
-            fontFamily: "Inter, sans-serif",
-            fontSize: "16px",
-            lineHeight: 1.6,
-            color: "#1C1B1A",
-          }}
         />
       </div>
 
-      <div style={{ textAlign: "center", marginTop: "16px", color: "#8A8580", fontSize: "13px" }}>
+      <div className="note-editor-save-status">
         {saveStatus === "saving" && "Saving..."}
         {saveStatus === "saved" && "Saved"}
       </div>
