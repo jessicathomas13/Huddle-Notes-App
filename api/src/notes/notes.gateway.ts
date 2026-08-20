@@ -9,6 +9,7 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
+import { NotesService } from './notes.service';
 
 @WebSocketGateway({
   cors: { origin: '*' }, // fine for local dev, tighten this before deploying
@@ -17,7 +18,10 @@ export class NotesGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server!: Server;
 
-  constructor(private jwtService: JwtService) {}
+  constructor(
+    private jwtService: JwtService,
+    private notesService: NotesService,
+  ) {}
 
   // Runs when any client connects - verify their JWT before letting them do anything
   handleConnection(client: Socket) {
@@ -36,11 +40,28 @@ export class NotesGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   // Client asks to join a specific note's "room"
   @SubscribeMessage('join_note')
-  handleJoinNote(
+  async handleJoinNote(
     @ConnectedSocket() client: Socket,
     @MessageBody() data: { noteId: string },
   ) {
-    client.join(data.noteId); // socket.io rooms - scopes broadcasts to just this note
+    try {
+      const userId = client.data.userId;
+
+      // findOne already checks whether this user owns
+      // or collaborates on the note
+      await this.notesService.findOne(userId, data.noteId);
+
+      await client.join(data.noteId);
+
+      client.emit('joined_note', {
+        noteId: data.noteId,
+      });
+    } catch {
+      client.emit('join_note_error', {
+        noteId: data.noteId,
+        message: 'You do not have access to this note',
+      });
+    }
   }
 
   // Client sends an edit - broadcast it to everyone else in the same room
@@ -49,18 +70,18 @@ export class NotesGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @ConnectedSocket() client: Socket,
     @MessageBody() data: { noteId: string; content: string },
   ) {
+    if (!client.rooms.has(data.noteId)) {
+      client.emit('edit_note_error', {
+        noteId: data.noteId,
+        message: 'You are not authorized to edit this note',
+      });
+
+      return;
+    }
+
     client.to(data.noteId).emit('note_updated', {
       content: data.content,
       userId: client.data.userId,
     });
-    // .to() broadcasts to everyone in the room EXCEPT the sender
-  }
-
-  @SubscribeMessage('leave_note')
-  handleLeaveNote(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() data: { noteId: string },
-  ) {
-    client.leave(data.noteId);
   }
 }
