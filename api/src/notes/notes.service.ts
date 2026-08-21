@@ -181,4 +181,31 @@ ${note.content}`;
       },
     });
   }
+
+  // Get everyone with access to a note: the owner + all collaborators
+  async getCollaborators(userId: string, noteId: string) {
+    const note = await prisma.note.findUnique({
+      where: { id: noteId },
+      include: {
+        owner: {
+          select: { id: true, email: true, name: true, avatarUrl: true },
+        },
+        collaborators: {
+          include: {
+            user: {
+              select: { id: true, email: true, name: true, avatarUrl: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!note) throw new NotFoundException('Note not found');
+    await this.assertAccess(userId, note); // anyone with access can see who else has access
+
+    return {
+      owner: note.owner,
+      collaborators: note.collaborators.map((c) => c.user),
+    };
+  }
 }

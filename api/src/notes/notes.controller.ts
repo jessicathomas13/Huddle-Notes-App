@@ -63,4 +63,10 @@ export class NotesController {
     return this.notesService.summarize(req.user.userId, id);
   }
 
+  // GET /notes/:id/collaborators - list everyone with access (owner + collaborators)
+  @Get(':id/collaborators')
+  getCollaborators(@Req() req, @Param('id') id: string) {
+    return this.notesService.getCollaborators(req.user.userId, id);
+  }
+
 }
