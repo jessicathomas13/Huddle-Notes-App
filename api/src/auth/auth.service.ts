@@ -1,20 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class AuthService {
-  constructor(private jwtService: JwtService) {}
+  constructor(private jwtService: JwtService, private prisma: PrismaService) {}
 
   async validateOAuthUser(googleUser: any): Promise<string> {
-    let user = await prisma.user.findUnique({
+    let user = await this.prisma.user.findUnique({
       where: { googleId: googleUser.googleId },
     });
 
     if (!user) {
-      user = await prisma.user.create({
+      user = await this.prisma.user.create({
         data: {
           googleId: googleUser.googleId,
           email: googleUser.email,

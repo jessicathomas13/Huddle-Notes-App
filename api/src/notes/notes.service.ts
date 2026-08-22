@@ -1,28 +1,27 @@
 import { BadRequestException, ConflictException, Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
+import { PrismaService } from 'src/prisma/prisma.service';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { ConfigService } from '@nestjs/config';
 
-const prisma = new PrismaClient();
 
 @Injectable()
 export class NotesService {
   private genAI: GoogleGenerativeAI;
 
-  constructor(private configService: ConfigService){
+  constructor(private configService: ConfigService, private prisma: PrismaService){
     this.genAI = new GoogleGenerativeAI(this.configService.get<string>('GEMINI_API_KEY')!);
   }
   
   // Create a note owned by the logged-in user
   async create(userId: string, title: string, content: string) {
-    return prisma.note.create({
+    return this.prisma.note.create({
       data: { title, content, ownerId: userId },
     });
   }
 
   // Get every note the user owns or has been added to as a collaborator
   async findAllForUser(userId: string) {
-    return prisma.note.findMany({
+    return this.prisma.note.findMany({
       where: {
         OR: [
           { ownerId: userId },
@@ -35,7 +34,7 @@ export class NotesService {
 
   // Get a single note, but only if the user is allowed to see it
   async findOne(userId: string, noteId: string) {
-    const note = await prisma.note.findUnique({ where: { id: noteId } });
+    const note = await this.prisma.note.findUnique({ where: { id: noteId } });
     if (!note) throw new NotFoundException('Note not found');
     await this.assertAccess(userId, note); // throws if not owner/collaborator
     return note;
@@ -43,20 +42,20 @@ export class NotesService {
 
   // Edit a note, same access check as findOne
   async update(userId: string, noteId: string, data: { title?: string; content?: string }) {
-    const note = await prisma.note.findUnique({ where: { id: noteId } });
+    const note = await this.prisma.note.findUnique({ where: { id: noteId } });
     if (!note) throw new NotFoundException('Note not found');
     await this.assertAccess(userId, note);
-    return prisma.note.update({ where: { id: noteId }, data });
+    return this.prisma.note.update({ where: { id: noteId }, data });
   }
 
   // Delete a note - owner only, collaborators can't delete
   async remove(userId: string, noteId: string) {
-    const note = await prisma.note.findUnique({ where: { id: noteId } });
+    const note = await this.prisma.note.findUnique({ where: { id: noteId } });
     if (!note) throw new NotFoundException('Note not found');
     if (note.ownerId !== userId) {
       throw new ForbiddenException('Only the owner can delete this note');
     }
-    return prisma.note.delete({ where: { id: noteId } });
+    return this.prisma.note.delete({ where: { id: noteId } });
   }
 
   // Shared access check used by findOne/update.
@@ -65,7 +64,7 @@ export class NotesService {
     if (note.ownerId === userId) return; // owner always has access
 
     // otherwise check the join table for a collaborator record
-    const collab = await prisma.noteCollaborator.findUnique({
+    const collab = await this.prisma.noteCollaborator.findUnique({
       where: { noteId_userId: { noteId: note.id, userId } },
     });
     if (!collab) throw new ForbiddenException('You do not have access to this note');
@@ -73,7 +72,7 @@ export class NotesService {
 
   // Generates a summary + tags for a note using Gemini, and saves them
   async summarize(userId: string, noteId: string) {
-    const note = await prisma.note.findUnique({ where: { id: noteId }});
+    const note = await this.prisma.note.findUnique({ where: { id: noteId }});
     if (!note) throw new NotFoundException('Note not found');
     await this.assertAccess(userId, note);
 
@@ -101,7 +100,7 @@ ${note.content}`;
     const cleaned = text.replace(/```json|```/g, '').trim();
     const parsed = JSON.parse(cleaned);
 
-    return prisma.note.update({
+    return this.prisma.note.update({
       where: { id: noteId },
       data: { summary: parsed.summary, tags: parsed.tags },
     })
@@ -115,7 +114,7 @@ ${note.content}`;
     noteId: string,
     email: string,
   ) {
-    const note = await prisma.note.findUnique({
+    const note = await this.prisma.note.findUnique({
       where: { id: noteId },
     });
 
@@ -130,7 +129,7 @@ ${note.content}`;
       );
     }
 
-    const user = await prisma.user.findUnique({
+    const user = await this.prisma.user.findUnique({
       where: { email },
     });
 
@@ -148,7 +147,7 @@ ${note.content}`;
     }
 
     const existingCollaborator =
-      await prisma.noteCollaborator.findUnique({
+      await this.prisma.noteCollaborator.findUnique({
         where: {
           noteId_userId: {
             noteId,
@@ -163,7 +162,7 @@ ${note.content}`;
       );
     }
 
-    return prisma.noteCollaborator.create({
+    return this.prisma.noteCollaborator.create({
       data: {
         noteId,
         userId: user.id,
@@ -184,7 +183,7 @@ ${note.content}`;
 
   // Get everyone with access to a note: the owner + all collaborators
   async getCollaborators(userId: string, noteId: string) {
-    const note = await prisma.note.findUnique({
+    const note = await this.prisma.note.findUnique({
       where: { id: noteId },
       include: {
         owner: {

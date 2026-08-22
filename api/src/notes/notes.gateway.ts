@@ -9,9 +9,8 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
-import { PrismaClient } from '@prisma/client';
+import { PrismaService } from 'src/prisma/prisma.service';
 
-const prisma = new PrismaClient();
 
 // Tracks who's currently in each note's room: noteId -> Map<socketId, userInfo>
 // would need Redis for multi-instance deploys
@@ -26,6 +25,7 @@ export class NotesGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   constructor(
     private jwtService: JwtService,
+    private prisma: PrismaService,
   ) {}
 
   // Runs when any client connects - verify their JWT before letting them do anything
@@ -36,7 +36,7 @@ export class NotesGateway implements OnGatewayConnection, OnGatewayDisconnect {
       client.data.userId = payload.sub; // stash the user id on the socket for later
 
       // fetch name/avatar once on connect so we don't hit the DB on every join/edit
-      const user = await prisma.user.findUnique({
+      const user = await this.prisma.user.findUnique({
         where: { id: payload.sub },
         select: { name: true, avatarUrl: true },
       });
