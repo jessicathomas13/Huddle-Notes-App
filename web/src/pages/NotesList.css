@@ -160,3 +160,25 @@
   justify-content: center;
   color: #8a8580;
 }
+
+.presence-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 720px;
+  margin: 0 auto 12px;
+  flex-wrap: wrap;
+}
+
+.presence-label {
+  font-size: 12px;
+  color: #8a8580;
+}
+
+.presence-pill {
+  font-size: 12px;
+  padding: 3px 10px;
+  background: #c4623e;
+  color: #f7f4ec;
+  border-radius: 10px;
+}

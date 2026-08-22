@@ -18,6 +18,7 @@ export default function NoteEditor() {
     const [isSharing, setIsSharing] = useState(false);
     const [owner, setOwner] = useState<{ id: string; email: string; name: string; avatarUrl?: string } | null>(null);
     const [collaborators, setCollaborators] = useState<{ id: string; email: string; name: string; avatarUrl?: string }[]>([]);
+    const [activeUsers, setActiveUsers] = useState<{ userId: string; name: string; avatarUrl?: string }[]>([]);
 
     const socketRef = useRef<Socket | null>(null);
     const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -48,23 +49,28 @@ export default function NoteEditor() {
         const token = localStorage.getItem("token");
 
         const socket = io("http://localhost:3000", {
-        auth: { token },
+            auth: { token },
         });
         socketRef.current = socket;
 
         socket.on("connect", () => {
-        socket.emit("join_note", { noteId: id });
+            socket.emit("join_note", { noteId: id });
         });
 
         // another collaborator edited - update our view without re-triggering a save
         socket.on("note_updated", (data: { content: string }) => {
-        isRemoteUpdate.current = true;
-        setContent(data.content);
+            isRemoteUpdate.current = true;
+            setContent(data.content);
+        });
+
+        // backend sends the full current list of who's in this note's room
+        socket.on('presence_update', (users: { userId: string; name: string; avatarUrl?: string }[]) => {
+            setActiveUsers(users);
         });
 
         return () => {
-        socket.emit("leave_note", { noteId: id });
-        socket.disconnect();
+            socket.emit("leave_note", { noteId: id });
+            socket.disconnect();
         };
     }, [id]);
 
@@ -73,33 +79,33 @@ export default function NoteEditor() {
         if (loading) return; // don't fire on initial load
 
         if (isRemoteUpdate.current) {
-        isRemoteUpdate.current = false; // this change came from someone else, don't re-broadcast or save
-        return;
+            isRemoteUpdate.current = false; // this change came from someone else, don't re-broadcast or save
+            return;
         }
 
         setSaveStatus("saving");
 
         if (saveTimeout.current) clearTimeout(saveTimeout.current);
         saveTimeout.current = setTimeout(async () => {
-        // broadcast to other collaborators in real time
-        socketRef.current?.emit("edit_note", { noteId: id, content });
+            // broadcast to other collaborators in real time
+            socketRef.current?.emit("edit_note", { noteId: id, content });
 
-        // persist to the database
-        await apiFetch(`/notes/${id}`, {
-            method: "PATCH",
-            body: JSON.stringify({ title, content }),
-        });
-        setSaveStatus("saved");
+            // persist to the database
+            await apiFetch(`/notes/${id}`, {
+                method: "PATCH",
+                body: JSON.stringify({ title, content }),
+            });
+            setSaveStatus("saved");
         }, 500); // debounce: wait for a pause in typing before syncing/saving
     }, [content, title]); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
         return () => {
             if (contentRef.current.trim().length > 0) {
-            // fire-and-forget : we're leaving the page, no need to wait or update UI here
-            apiFetch(`/notes/${idRef.current}/summarize`, { method: 'POST' }).catch(() => {
-            // silently ignore  
-            });
+                // fire-and-forget : we're leaving the page, no need to wait or update UI here
+                apiFetch(`/notes/${idRef.current}/summarize`, { method: 'POST' }).catch(() => {
+                // silently ignore  
+                });
             }
         };
     }, []);
@@ -179,6 +185,17 @@ export default function NoteEditor() {
             >
                 ← Back to notes
             </button>
+
+            {activeUsers.length > 0 && (
+            <div className="presence-bar">
+                <span className="presence-label">Editing now:</span>
+                {activeUsers.map((u, i) => (
+                <span key={`${u.userId}-${i}`} className="presence-pill">
+                    {u.name}
+                </span>
+                ))}
+            </div>
+            )}
 
             <button
                 className="note-editor-share"
