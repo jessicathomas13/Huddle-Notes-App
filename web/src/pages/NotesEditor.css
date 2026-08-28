@@ -1,7 +1,9 @@
 .note-editor-page {
   min-height: 100vh;
   background: #1c1b1a;
-  padding: 40px;
+  background-image: linear-gradient(#242322 1px, transparent 1px), linear-gradient(90deg, #242322 1px, transparent 1px);
+  background-size: 48px 48px;
+  padding: 40px 60px 80px;
   font-family: Inter, sans-serif;
 }
 
@@ -13,7 +15,7 @@
 }
 
 .note-editor-topbar {
-  max-width: 720px;
+  max-width: 900px;
   margin: 0 auto 20px;
   display: flex;
   align-items: center;
@@ -50,12 +52,14 @@
 }
 
 .note-editor-card {
-  max-width: 720px;
+  max-width: 900px;
   margin: 0 auto;
   background: #f7f4ec;
-  border-radius: 8px;
-  padding: 48px;
-  min-height: 70vh;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 10px;
+  padding: 64px 72px;
+  min-height: 75vh;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
 }
 
 .note-editor-title {
@@ -64,22 +68,23 @@
   outline: none;
   background: transparent;
   font-family: "Source Serif 4", serif;
-  font-size: 32px;
-  margin-bottom: 24px;
+  font-size: 36px;
+  margin-bottom: 32px;
   color: #1c1b1a;
 }
 
 .note-editor-content {
   width: 100%;
-  min-height: 50vh;
   border: none;
   outline: none;
-  resize: vertical;
+  resize: none;          
+  overflow: hidden;    
   background: transparent;
   font-family: Inter, sans-serif;
-  font-size: 16px;
-  line-height: 1.6;
+  font-size: 17px;
+  line-height: 1.7;
   color: #1c1b1a;
+  display: block;
 }
 
 .note-editor-save-status {

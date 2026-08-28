@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { io, Socket } from "socket.io-client";
 import { apiFetch } from "../api/client";
 import "./NotesEditor.css";
+import { getCurrentUserId } from "../api/auth";
 
 export default function NoteEditor() {
     const { id } = useParams<{ id: string }>();
@@ -19,6 +20,7 @@ export default function NoteEditor() {
     const [owner, setOwner] = useState<{ id: string; email: string; name: string; avatarUrl?: string } | null>(null);
     const [collaborators, setCollaborators] = useState<{ id: string; email: string; name: string; avatarUrl?: string }[]>([]);
     const [activeUsers, setActiveUsers] = useState<{ userId: string; name: string; avatarUrl?: string }[]>([]);
+    const [isOwner, setIsOwner] = useState(false);
 
     const socketRef = useRef<Socket | null>(null);
     const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -27,6 +29,21 @@ export default function NoteEditor() {
     const contentRef = useRef(content);
     const idRef = useRef(id);
 
+    const contentTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+    // Grows the textarea to fit its content instead of scrolling internally
+    function autoResize() {
+        const el = contentTextareaRef.current;
+        if (!el) return;
+        el.style.height = "auto"; // reset first so it can shrink too, not just grow
+        el.style.height = `${el.scrollHeight}px`;
+    }
+
+    // Resize once after the note's content loads (initial render needs a height too)
+    useEffect(() => {
+        if (!loading) autoResize();
+    }, [loading]);
+
     useEffect(() => {
         contentRef.current = content;
     }, [content]);
@@ -34,13 +51,12 @@ export default function NoteEditor() {
     // Load the note once on mount
     useEffect(() => {
         if (!id) return;
-        apiFetch(`/notes/${id}`)
-        .then((note) => {
+        apiFetch(`/notes/${id}`).then((note) => {
             setTitle(note.title);
             setContent(note.content);
+            setIsOwner(note.ownerId === getCurrentUserId());
             setLoading(false);
-        })
-        .catch(() => navigate("/notes")); // note not found or no access - bounce back
+        }).catch(() => navigate("/notes"));
     }, [id, navigate]);
 
     // Set up the socket connection once
@@ -198,21 +214,23 @@ export default function NoteEditor() {
             )}
 
             <button
-                className="note-editor-share"
-                onClick={() => {
-                    setShowShareModal(true);
-                    loadCollaborators();
-                }}
+            className="note-editor-share"
+            onClick={() => {
+                setShowShareModal(true);
+                loadCollaborators();
+            }}
             >
-                Share
+            {isOwner ? "Share" : "Collaborators"}
             </button>
             </div>
         {showShareModal && (
             <div className="modal-overlay">
                 <div className="share-modal">
-                <h2>Share note</h2>
-
-                <p>Add another Huddle user as a collaborator.</p>
+                <h2>{isOwner ? "Share note" : "Collaborators"}</h2>
+                
+                <p>
+                {isOwner ? "Add another Huddle user as a collaborator." : "Everyone with access to this note."}
+                </p>
 
                 <div className="collaborator-list">
                     {owner && (
@@ -245,47 +263,40 @@ export default function NoteEditor() {
                     ))}
                 </div>
 
-                <input
+                {isOwner && (
+                <>
+                    <input
                     type="email"
                     placeholder="friend@example.com"
                     value={shareEmail}
                     onChange={(e) => {
-                    setShareEmail(e.target.value);
-                    setShareError('');
-                    setShareSuccess('');
+                        setShareEmail(e.target.value);
+                        setShareError('');
+                        setShareSuccess('');
                     }}
-                />
+                    />
 
-                {shareError && (
-                    <p className="share-error">
-                    {shareError}
-                    </p>
-                )}
-
-                {shareSuccess && (
-                    <p className="share-success">
-                    {shareSuccess}
-                    </p>
+                    {shareError && <p className="share-error">{shareError}</p>}
+                    {shareSuccess && <p className="share-success">{shareSuccess}</p>}
+                </>
                 )}
 
                 <div className="share-modal-actions">
-                    <button className="share-cancel-button"
-                    onClick={() => {
+                    <button className="share-cancel-button" onClick={() => {
                         setShowShareModal(false);
                         setShareEmail('');
                         setShareError('');
                         setShareSuccess('');
                     }}
                     >
-                    Cancel
+                    {isOwner ? "Cancel" : "Close"}
                     </button>
-
-                    <button className="share-submit-button"
-                    onClick={handleShare}
-                    disabled={isSharing}
-                    >
-                    {isSharing ? 'Adding...' : 'Add collaborator'}
-                    </button>
+                    
+                    {isOwner && (
+                        <button className="share-submit-button" onClick={handleShare} disabled={isSharing}>
+                            {isSharing ? 'Adding...' : 'Add collaborator'}
+                        </button>
+                    )}
                 </div>
                 </div>
             </div>
@@ -299,9 +310,13 @@ export default function NoteEditor() {
             placeholder="Untitled"
             />
             <textarea
+            ref={contentTextareaRef}
             className="note-editor-content"
             value={content}
-            onChange={(e) => setContent(e.target.value)}
+            onChange={(e) => {
+                setContent(e.target.value);
+                autoResize();
+            }}
             placeholder="Start writing..."
             />
         </div>

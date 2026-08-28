@@ -6,9 +6,9 @@
 }
 
 .notes-sidebar {
-  width: 320px;
+  width: 450px;
   border-right: 1px solid #3d3b38;
-  padding: 24px;
+  padding: 32px 28px;
   color: #f7f4ec;
   overflow-y: auto;
 }
@@ -156,9 +156,34 @@
 .notes-empty-panel {
   flex: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   color: #8a8580;
+  position: relative;
+  background-image: linear-gradient(#242322 1px, transparent 1px),
+    linear-gradient(90deg, #242322 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+.notes-empty-icon {
+  width: 56px;
+  height: 56px;
+  margin-bottom: 16px;
+  opacity: 0.4;
+}
+
+.notes-empty-title {
+  font-family: "Source Serif 4", serif;
+  font-size: 20px;
+  color: #b5b0a8;
+  margin: 0 0 6px;
+}
+
+.notes-empty-subtitle {
+  font-size: 14px;
+  color: #6f6b65;
+  margin: 0;
 }
 
 .presence-bar {

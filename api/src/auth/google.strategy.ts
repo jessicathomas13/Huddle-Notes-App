@@ -22,10 +22,11 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     done: VerifyCallback,
   ): Promise<any> {
     const { id, name, emails, photos } = profile;
+    const fullName = [name?.givenName, name?.familyName].filter(Boolean).join(' ') || profile.displayName || 'Unknown';
     const user = {
       googleId: id,
       email: emails[0].value,
-      name: `${name.givenName} ${name.familyName}`,
+      name: fullName,
       avatarUrl: photos[0]?.value,
     };
     done(null, user);

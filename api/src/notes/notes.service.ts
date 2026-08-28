@@ -109,11 +109,7 @@ ${note.content}`;
 
   // Add a collaborator by email (only users that exist in the database for now)
   // Can add invite by email later
-  async addCollaborator(
-    ownerId: string,
-    noteId: string,
-    email: string,
-  ) {
+  async addCollaborator( ownerId: string, noteId: string, email: string ) {
     const note = await this.prisma.note.findUnique({
       where: { id: noteId },
     });
@@ -124,9 +120,7 @@ ${note.content}`;
 
     // Only the note owner can share it
     if (note.ownerId !== ownerId) {
-      throw new ForbiddenException(
-        'Only the owner can add collaborators',
-      );
+      throw new ForbiddenException( 'Only the owner can add collaborators');
     }
 
     const user = await this.prisma.user.findUnique({
@@ -134,16 +128,12 @@ ${note.content}`;
     });
 
     if (!user) {
-      throw new NotFoundException(
-        'No Huddle user exists with that email',
-      );
+      throw new NotFoundException( 'No Huddle user exists with that email');
     }
 
     // Owner cannot add themselves as a collaborator
     if (user.id === ownerId) {
-      throw new BadRequestException(
-        'You cannot add yourself as a collaborator',
-      );
+      throw new BadRequestException('You cannot add yourself as a collaborator');
     }
 
     const existingCollaborator =
@@ -157,9 +147,7 @@ ${note.content}`;
       });
 
     if (existingCollaborator) {
-      throw new ConflictException(
-        'User is already a collaborator',
-      );
+      throw new ConflictException( 'User is already a collaborator');
     }
 
     return this.prisma.noteCollaborator.create({
