@@ -26,8 +26,12 @@ export default function NoteEditor() {
     const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
     const isRemoteUpdate = useRef(false); // prevents echoing our own broadcasts back into a save loop
 
-    const contentRef = useRef(content);
-    const idRef = useRef(id);
+    // const contentRef = useRef(content);
+    // const idRef = useRef(id);
+
+    const [summary, setSummary] = useState<string | null>(null);
+    const [tags, setTags] = useState<string[]>([]);
+    const [isGenerating, setIsGenerating] = useState(false);
 
     const contentTextareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -44,9 +48,9 @@ export default function NoteEditor() {
         if (!loading) autoResize();
     }, [loading]);
 
-    useEffect(() => {
-        contentRef.current = content;
-    }, [content]);
+    // useEffect(() => {
+    //     contentRef.current = content;
+    // }, [content]);
 
     // Load the note once on mount
     useEffect(() => {
@@ -115,16 +119,28 @@ export default function NoteEditor() {
         }, 500); // debounce: wait for a pause in typing before syncing/saving
     }, [content, title]); // eslint-disable-line react-hooks/exhaustive-deps
 
+    // useEffect(() => {
+    //     return () => {
+    //         if (contentRef.current.trim().length > 0) {
+    //             // fire-and-forget : we're leaving the page, no need to wait or update UI here
+    //             apiFetch(`/notes/${idRef.current}/summarize`, { method: 'POST' }).catch(() => {
+    //             // silently ignore  
+    //             });
+    //         }
+    //     };
+    // }, []);
+
     useEffect(() => {
-        return () => {
-            if (contentRef.current.trim().length > 0) {
-                // fire-and-forget : we're leaving the page, no need to wait or update UI here
-                apiFetch(`/notes/${idRef.current}/summarize`, { method: 'POST' }).catch(() => {
-                // silently ignore  
-                });
-            }
-        };
-    }, []);
+        if (!id) return;
+        apiFetch(`/notes/${id}`).then((note) => {
+            setTitle(note.title);
+            setContent(note.content);
+            setSummary(note.summary ?? null);
+            setTags(note.tags ?? []);
+            setIsOwner(note.ownerId === getCurrentUserId());
+            setLoading(false);
+        }).catch(() => navigate("/notes"));
+    }, [id, navigate]);
 
     const handleShare = async () => {
         if (!shareEmail.trim()) {
@@ -185,6 +201,20 @@ export default function NoteEditor() {
             setCollaborators(data.collaborators);
         } catch (err) {
             console.error(err);
+        }
+    }
+
+    async function handleGenerateSummary() {
+        setIsGenerating(true);
+        try {
+            const updated = await apiFetch(`/notes/${id}/summarize`, { method: "POST" });
+            setSummary(updated.summary);
+            setTags(updated.tags ?? []);
+        } catch (err) {
+            setSummary(null);
+        
+        } finally {
+            setIsGenerating(false);
         }
     }
 
@@ -319,6 +349,31 @@ export default function NoteEditor() {
             }}
             placeholder="Start writing..."
             />
+        </div>
+
+        <div className="note-editor-ai-section">
+        <button
+            className="note-editor-generate-btn"
+            onClick={handleGenerateSummary}
+            disabled={isGenerating || content.trim().length === 0}
+        >
+            {isGenerating ? "Generating..." : "✨ Generate summary & tags"}
+        </button>
+
+        {summary && (
+            <div className="note-editor-summary">
+            <p>{summary}</p>
+            {tags.length > 0 && (
+                <div className="note-editor-tags">
+                {tags.map((tag) => (
+                    <span key={tag} className="note-editor-tag">
+                    {tag}
+                    </span>
+                ))}
+                </div>
+            )}
+            </div>
+        )}
         </div>
 
         <div className="note-editor-save-status">

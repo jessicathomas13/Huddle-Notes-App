@@ -72,30 +72,17 @@ export class NotesService {
 
   // Generates a summary + tags for a note using Gemini, and saves them
   async summarize(userId: string, noteId: string) {
-    const note = await this.prisma.note.findUnique({ where: { id: noteId }});
+    const note = await this.prisma.note.findUnique({ where: { id: noteId } });
     if (!note) throw new NotFoundException('Note not found');
     await this.assertAccess(userId, note);
 
-    const model = this.genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
-
     const prompt = `Summarize the following note in one short sentence, and suggest 2-4 relevant single-word or short-phrase tags.
-Respond ONLY with valid JSON in this exact shape, no other text: {"summary": "...", "tags": ["...", "..."]}
-Note content:
-${note.content}`;
+  Respond ONLY with valid JSON in this exact shape, no other text: {"summary": "...", "tags": ["...", "..."]}
 
-    let text: string;
-    try {
-      const result = await model.generateContent(prompt);
-      text = result.response.text();
-    } catch (err: any) {
-      if (err.status === 503) {
-        await new Promise((resolve) => setTimeout(resolve, 2000)); // wait 2s
-        const retryResult = await model.generateContent(prompt);
-        text = retryResult.response.text();
-      } else {
-        throw err;
-      }
-    }
+  Note content:
+  ${note.content}`;
+
+    const text = await this.generateWithRetry(prompt);
 
     const cleaned = text.replace(/```json|```/g, '').trim();
     const parsed = JSON.parse(cleaned);
@@ -103,8 +90,36 @@ ${note.content}`;
     return this.prisma.note.update({
       where: { id: noteId },
       data: { summary: parsed.summary, tags: parsed.tags },
-    })
+    });
+  }
 
+  // Tries gemini-flash-latest with a couple of retries (backing off each time),
+  // then falls back to gemini-2.5-flash-lite if it's still overloaded.
+  private async generateWithRetry(prompt: string): Promise<string> {
+    const primaryModel = this.genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
+    const fallbackModel = this.genAI.getGenerativeModel({ model: 'gemini-3.5-flash-lite' });
+
+    const delays = [1000, 3000]; // wait 1s, then 3s, between retries
+
+    for (let attempt = 0; attempt <= delays.length; attempt++) {
+      try {
+        const result = await primaryModel.generateContent(prompt);
+        return result.response.text();
+      } catch (err: any) {
+        const isOverloaded = err?.status === 503;
+        const isLastAttempt = attempt === delays.length;
+
+        if (!isOverloaded || isLastAttempt) {
+          // not a 503, or we're out of retries on the primary model - try the fallback once
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, delays[attempt]));
+      }
+    }
+
+    // Primary model exhausted its retries - try a different, often less-contended model
+    const fallbackResult = await fallbackModel.generateContent(prompt);
+    return fallbackResult.response.text();
   }
 
   // Add a collaborator by email (only users that exist in the database for now)

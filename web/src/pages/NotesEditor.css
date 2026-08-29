@@ -262,3 +262,61 @@
   border-radius: 10px;
   flex-shrink: 0;
 }
+
+.note-editor-ai-section {
+  max-width: 900px;
+  margin: 24px auto 0;
+}
+
+.note-editor-generate-btn {
+  display: block;
+  margin: 0 auto;
+  padding: 10px 20px;
+  background: transparent;
+  border: 1px solid #3d5a80;
+  color: #f7f4ec;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.note-editor-generate-btn:hover:not(:disabled) {
+  background: #3d5a80;
+}
+
+.note-editor-generate-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  border-color: #4a4844;
+}
+
+.note-editor-summary {
+  margin-top: 16px;
+  padding: 16px 20px;
+  background: #242322;
+  border-radius: 8px;
+  border-left: 3px solid #c4623e;
+}
+
+.note-editor-summary p {
+  margin: 0 0 10px;
+  color: #d8d4cb;
+  font-style: italic;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.note-editor-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.note-editor-tag {
+  font-size: 11px;
+  padding: 3px 10px;
+  background: #3d5a80;
+  color: #f7f4ec;
+  border-radius: 10px;
+}
