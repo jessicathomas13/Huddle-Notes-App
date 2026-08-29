@@ -14,7 +14,14 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
   });
 
   if (!res.ok) {
-    throw new Error(`API error: ${res.status}`);
+    let message = `API error: ${res.status}`;
+    try {
+      const data = await res.json();
+      if (data?.message) message = data.message;
+    } catch {
+      //
+    }
+    throw new Error(message);
   }
 
   return res.json();
