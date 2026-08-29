@@ -2,6 +2,10 @@
 
 A real-time collaborative notes app with Google sign-in, live multi-user editing, and AI-generated summaries and tags.
 
+**Live demo:** [huddle-notes-app-1.onrender.com](https://huddle-notes-app-1.onrender.com)
+
+> Hosted on Render's free tier - the backend spins down after 15 minutes of inactivity, so the first request after idle time can take 30-60 seconds to wake up. Everything's fast after that initial load.
+
 ## Features
 
 - **Google OAuth sign-in** - no passwords, JWT-based sessions
