@@ -1,4 +1,4 @@
-const API_URL = "http://localhost:3000";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 // Wraps fetch with the JWT automatically attached, and basic error handling
 export async function apiFetch(path: string, options: RequestInit = {}) {

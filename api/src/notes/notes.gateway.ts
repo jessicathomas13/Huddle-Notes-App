@@ -17,7 +17,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 const presenceByNote = new Map<string, Map<string, { userId: string; name: string; avatarUrl?: string }>>();
 
 @WebSocketGateway({
-  cors: { origin: '*' }, // fine for local dev, tighten this before deploying
+  cors: { origin: process.env.FRONTEND_URL || 'http://localhost:5173' }, 
 })
 export class NotesGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()

@@ -68,7 +68,7 @@ export default function NoteEditor() {
         if (!id) return;
         const token = localStorage.getItem("token");
 
-        const socket = io("http://localhost:3000", {
+        const socket = io(import.meta.env.VITE_API_URL || "http://localhost:3000", {
             auth: { token },
         });
         socketRef.current = socket;
@@ -357,7 +357,7 @@ export default function NoteEditor() {
             onClick={handleGenerateSummary}
             disabled={isGenerating || content.trim().length === 0}
         >
-            {isGenerating ? "Generating..." : "✨ Generate summary & tags"}
+            {isGenerating ? "Generating..." : "Generate summary & tags"}
         </button>
 
         {summary && (

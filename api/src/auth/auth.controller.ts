@@ -17,7 +17,7 @@ export class AuthController {
   @UseGuards(AuthGuard('google'))
   async googleAuthCallback(@Req() req, @Res() res: Response) {
     const jwt = await this.authService.validateOAuthUser(req.user);
-    // redirect back to frontend with token (adjust URL once frontend exists)
-    res.redirect(`http://localhost:5173/auth/callback?token=${jwt}`);
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    res.redirect(`${frontendUrl}/auth/callback?token=${jwt}`);
   }
 }
